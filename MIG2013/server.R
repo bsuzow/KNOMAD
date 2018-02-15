@@ -91,7 +91,7 @@ shinyServer(function(input, output) {
    
       country.df = country.df %>% filter(!is.na(Code)) %>% # remove countries with no code
                                   mutate(Code=ifelse(grepl("^Korea,( +)Dem",Country),"PRK",Code)) %>% # fix north korea's code
-                                  mutate(NumMigK = round(NumMig/1000,1)) %>%
+                                  mutate(NumMigK = round(NumMig/1000,2)) %>%
                                   mutate(hoverpop = paste(as.character(round(NumMig/1000,1)),
                                                           "K moved to ",Country,sep=""))# compose the tooltip text
    })  # Mig2013DF - reactive
@@ -103,9 +103,9 @@ shinyServer(function(input, output) {
       
       dataTableDF = Mig2013DF() %>% arrange(desc(NumMig)) %>% select(NumMigK,Country)
       if (input$direction == "Immigrate to") {
-         names(dataTableDF) = c("#Citizens in K","From")
+         names(dataTableDF) = c("# Citizens in thousands","From")
       } else {
-         names(dataTableDF) = c("#Citizens in K","To")
+         names(dataTableDF) = c("# Citizens in thousands","To")
       }
       
       dataTableDF
@@ -142,7 +142,7 @@ shinyServer(function(input, output) {
    output$tab2_data = renderTable({
       
      head(Mig2013DF.desc(),n=20)
-         
+              
    })  # tab2_data
    
    output$Mig2013 <- renderPlotly({

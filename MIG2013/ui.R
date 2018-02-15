@@ -80,8 +80,12 @@ shinyUI(fluidPage(
          tags$a("the Migration and Remittances 
                Factbook 2016, which includes new bilateral data on migration stocks, 
                 World Bank.  ", href="https://www.worldbank.org/prospects/migrationandremittances"),
-         #br(),
-         tags$a("(FAQ)",href="https://www.knomad.org/data/faqs")
+         
+         br(),
+         br(),
+         tags$p("The database of the UN Population Division (UNPD) is the most comprehensive 
+                source of information on international migrant stocks for the period 1960–2013. "),
+         tags$a("Read more ...",href="https://www.knomad.org/data/faqs")
          
          ),  # sidebarPanel
       
