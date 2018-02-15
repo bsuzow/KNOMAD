@@ -1,0 +1,127 @@
+---
+title: "Migration2013"
+author: "Bo Suzow"
+date: "February 9, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+The purpose of this report to explore the bilateral migration data available at [KNOMAD](https://www.knomad.org/data/migration/emigration). The Global Knowledge Partnership on Migration and Development (KNOMAD) is a global hub of knowledge and policy expertise on migration and development issues.
+
+The dataset utilized in this report can be accessed  [here.](https://www.knomad.org/sites/default/files/2017-03/bilateralmigrationmatrix20130.xlsx)
+
+The report extracts data pertinent to the emigration from the USA for the exploratory analysis and plotting.  [A companion Shiny app](http://www.tinyurl.com/bsuzow/MIG2013) allows the user to select a country for emigration or immigration data. 
+
+***
+## Data load and preparation
+
+```{r, dataprep}
+
+library(readxl)  #http://readxl.tidyverse.org/
+library(dplyr)
+library(data.table)
+library(ggplot2)
+library(plotly)
+
+
+download.file("https://www.knomad.org/sites/default/files/2017-03/bilateralmigrationmatrix20130.xlsx","Mig2013.xlsx", mode="wb")
+Mig2013 = read_excel("Mig2013.xlsx",range="A2:HJ219")
+names(Mig2013)[1]="Country"  # shorten the col name
+
+# Select the US for the focus of the exploratory analysis, 
+#    
+
+Mig2013US = Mig2013 %>% filter(Country == "United States")  # extracting data points pertinent to US
+
+Mig2013US = melt(Mig2013US)
+Mig2013US$Country = NULL  # remove the first col whose value is "United States" for all rows, thus meaningless
+
+names(Mig2013US) = c("Country","NumMig")
+Mig2013US = Mig2013US %>% filter(NumMig>0)
+
+```
+
+Now, the dataset needs to be augmented with country codes. With a quick Google search, I found [a source for Country Codes](https://raw.githubusercontent.com/plotly/datasets/master/2014_world_gdp_with_codes.csv). Unfortunately, it did not cover all countries represented in the dataset downloaded from KNOMAD. Further research led me to the countrycode R package which turned out to be a better choice.
+
+```{r}
+
+CountryCodes=read.csv("https://raw.githubusercontent.com/plotly/datasets/master/2014_world_gdp_with_codes.csv")
+
+names(CountryCodes)[1]="Country"
+
+Mig2013US2= merge(x=Mig2013US,y=CountryCodes,by="Country",all.x=TRUE)
+# ref: https://stackoverflow.com/questions/1299871/how-to-join-merge-data-frames-inner-outer-left-right
+# This returned about 20 countries with no code.
+
+# Fortunately,I found the countrycode package. 
+
+library(countrycode)
+Mig2013US2 = Mig2013US %>% mutate(Code=countrycode(Country,"country.name","iso3c"))
+
+# A much better result.  It is still coded north korea incorrectly.  No country codes for Other North and Other South.  This should be noted in the Shiny app.
+
+Mig2013US3 = Mig2013US2 %>% 
+               filter(!is.na(Code)) %>% # remove countries with no code
+               mutate(Code=ifelse(grepl("^Korea,( +)Dem",Country),"PRK",Code)) %>% # fix north korea's code
+               mutate(hoverpop = paste(as.character(round(NumMig/1000,1)),
+                                       "K moved to ",
+                                       Country,sep="")) # compose the tooltip text
+
+
+```
+
+## Plotting - Emigration
+
+Let's plot a world map visualizing how many US citizens have moved to other countries.
+
+```{r, plot}
+
+
+borders = list(color= toRGB("black"),width=1)
+map_options = list(
+   scope="world",
+   projection = list(type='Mercator'),
+   showcoastlines = TRUE
+   ) # borders
+     
+p3 = plot_ly(z   = ~Mig2013US3$NumMig,
+            text = ~Mig2013US3$hoverpop,
+            locations = ~Mig2013US3$Code,
+            type ="choropleth",
+            locationmode='world',
+            color=~Mig2013US3$NumMig,
+            colors="Blues",
+            marker = list(line=borders)) %>%
+   
+     colorbar(title = "Migration Outflow") %>%
+   
+     plotly::layout(title='US citizens migrate out to (Hover for breakdown)', geo=map_options)
+     
+p3
+
+```
+
+
+Sort the data frame on the migration outflow numbers in descending order to list top 10 countries the US citizens moved to.
+
+
+```{r}
+
+Mig2013US3.desc = Mig2013US3 %>% arrange(desc(NumMig))
+head(Mig2013US3.desc,10)
+
+```
+
+***
+## Companion Shiny App
+
+As mentioned earlier in the report, you may take a look at [the Shiny app](http://www.tinyurl.com/bsuzow/MIG2013) that allows you to select a country for emigration or immgration data.
+
+
+
+
